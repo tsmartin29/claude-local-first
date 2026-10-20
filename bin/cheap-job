@@ -1,0 +1,13 @@
+#!/bin/zsh
+# cheap-job <handoff.md> : run one handoff file in cheap mode (tier 2) and append the result to your inbox file.
+# Env: CHEAP_WORKDIR (where the work happens, default: current dir), CHEAP_INBOX (default ~/.local-first/INBOX.md)
+H="$1"; [[ -f "$H" ]] || { echo "usage: cheap-job <handoff.md>"; exit 1; }
+LF="${LOCAL_FIRST_HOME:-$HOME/.local-first}"
+WORKDIR="${CHEAP_WORKDIR:-$PWD}"; INBOX="${CHEAP_INBOX:-$LF/INBOX.md}"
+NAME=$(basename "$H" .md); mkdir -p "$LF/logs" "$(dirname "$INBOX")"; LOG="$LF/logs/cheap-$NAME.log"
+cd "$WORKDIR" && nice -n 15 claude-cheap haiku -p "Do the task in $H exactly. Read that file first. End with a short plain summary: what you did, files written, anything that needs a decision." \
+  --permission-mode acceptEdits --allowedTools "Read Glob Grep Write Edit LS" > "$LOG" 2>&1
+RC=$?
+{ echo "## $(date '+%B %d, %Y %H:%M') · $NAME · exit $RC"; echo; tail -40 "$LOG"; echo; } >> "$INBOX"
+osascript -e "display notification \"$NAME finished (exit $RC). Result is in the inbox.\" with title \"Cheap mode\"" 2>/dev/null
+exit $RC

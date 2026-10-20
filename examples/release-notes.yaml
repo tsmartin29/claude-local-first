@@ -1,0 +1,7 @@
+# never_cheap: this always goes to Claude. The ladder never runs it on a script, a local model or the cheap API,
+# and the suggestion engine never offers to move it.
+name: release-notes
+never_cheap: true
+description: Write customer-facing release notes and decide what to say about risky changes.
+prompt: Draft release notes from the attached changelog. Flag anything that needs a human decision.
+inputs: [CHANGELOG.md]

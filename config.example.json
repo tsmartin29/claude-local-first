@@ -1,0 +1,20 @@
+{
+  "min_avail_gb": 2.0,
+  "min_disk_gb": 5.0,
+  "inbox": "~/.local-first/INBOX.md",
+  "notify": true,
+
+  "auto_move": false,
+  "bands": {"amber_five_hour": 80, "amber_weekly": 85, "amber_model_weekly": 85, "amber_extra": 90, "red": 100},
+
+  "usage_source": "transcripts",
+  "budgets_calibrated": false,
+  "five_hour_budget_tokens": 3000000,
+  "weekly_budget_tokens": 40000000,
+  "count_cache_reads": false,
+
+  "ollama_url": "http://127.0.0.1:11434",
+  "ollama_model": "",
+  "tier2_command": ["claude-cheap", "haiku", "-p", "{prompt}"],
+  "redact_for_api": true
+}

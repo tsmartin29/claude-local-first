@@ -1,0 +1,5 @@
+#!/bin/zsh
+# Saves (or replaces) your OpenRouter key in the Mac Keychain for claude-cheap. The key is never written to a file.
+SERVICE="${CHEAP_KEYCHAIN_SERVICE:-local-first-openrouter}"
+echo "Paste your OpenRouter key at the prompt below, then press Return (nothing shows while you paste)."
+security add-generic-password -U -s "$SERVICE" -a openrouter -w && echo "Saved in the Keychain as '$SERVICE'. Now run:  claude-cheap"

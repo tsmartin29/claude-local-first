@@ -1,0 +1,8 @@
+# A prompt-only task. It starts at Claude (tier 3) because that is where it runs today. When your usage gets high you will be
+# SUGGESTED a cheaper tier (a local model, or the cheap API); it moves only if you accept (localfirst accept t-summarise-notes).
+# To choose a tier yourself right now, uncomment the next line:
+# tier: 1
+name: summarise-notes
+prompt: Summarise these notes as five bullets and list any open questions.
+inputs: [notes.md]
+output: ~/.local-first/data/notes-summary.md

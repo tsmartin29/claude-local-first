@@ -1,0 +1,70 @@
+#!/bin/zsh
+# Claude Code running on cheaper models through OpenRouter (billed to your OpenRouter credits, not your Claude plan).
+#   claude-cheap          main work on $CHEAP_MAIN_MODEL, quick jobs on $CHEAP_FAST_MODEL
+#   claude-cheap haiku    everything on $CHEAP_HAIKU_MODEL (a real Claude model, still cheap)
+# Any further arguments go to `claude` (for example: claude-cheap haiku -p "do the thing").
+#
+# It also sets the window title, prints a two-line banner, starts Claude Code with a status line (model, folder, OpenRouter
+# credit left, inbox count), names the session "cheap mode" and appends guardrails to the system prompt.
+#
+# Settings: environment variables, or a plain KEY=VALUE file at ~/.local-first/cheap.env (read first; real env wins):
+#   OPENROUTER_API_KEY        key; if unset it is read from the macOS Keychain (see claude-cheap-key)
+#   CHEAP_KEYCHAIN_SERVICE    Keychain service name            (default local-first-openrouter)
+#   CHEAP_INBOX               where results are appended       (default ~/.local-first/INBOX.md)
+#   CHEAP_DIR                 where settings.json is written   (default ~/.local-first/cheap)
+#   CHEAP_GUARDRAILS          guardrail text for the system prompt; or CHEAP_GUARDRAILS_FILE=path to a text file
+#   CHEAP_MAIN_MODEL / CHEAP_FAST_MODEL / CHEAP_HAIKU_MODEL   OpenRouter model ids (check openrouter.ai/models; they change)
+#   CHEAP_STATUSLINE=0        turn the status line off          CLAUDE_BIN  path to claude
+LF="${LOCAL_FIRST_HOME:-$HOME/.local-first}"
+if [[ -f "$LF/cheap.env" ]]; then
+  while IFS='=' read -r k v; do
+    [[ "$k" =~ '^[A-Z_]+$' && -z "${(P)k}" ]] && export "$k=${v//\"/}"
+  done < <(grep -E '^[A-Z_]+=' "$LF/cheap.env")
+fi
+SERVICE="${CHEAP_KEYCHAIN_SERVICE:-local-first-openrouter}"
+KEY="${OPENROUTER_API_KEY:-$(security find-generic-password -s "$SERVICE" -a openrouter -w 2>/dev/null)}"
+if [[ -z "$KEY" ]]; then
+  echo "No OpenRouter key found. Run claude-cheap-key (saves it in the Keychain) or export OPENROUTER_API_KEY."
+  exit 1
+fi
+MAIN="${CHEAP_MAIN_MODEL:-z-ai/glm-5.3}"
+FAST="${CHEAP_FAST_MODEL:-deepseek/deepseek-v4.1-flash}"
+if [[ "$1" == "haiku" ]]; then
+  MAIN="${CHEAP_HAIKU_MODEL:-anthropic/claude-haiku-5.5}"; FAST="$MAIN"; shift
+fi
+CLAUDE="${CLAUDE_BIN:-$(command -v claude)}"
+[[ -x "$CLAUDE" ]] || { echo "claude not found. Install Claude Code or set CLAUDE_BIN."; exit 1; }
+
+INBOX="${CHEAP_INBOX:-$LF/INBOX.md}"
+DIR="${CHEAP_DIR:-$LF/cheap}"
+HERE="${0:A:h}"
+GUARD_DEFAULT="You are running in CHEAP MODE on a lower-cost model via OpenRouter, for routine work (copy, reports, research, file sorting, summaries). Never build, sign, release, deploy or publish software, and never edit production code: if a task needs that, write a handoff note instead. Never permanently delete files (move them to the Trash). When you finish a task, append a short result (date, task, files written, decisions needed) to $INBOX. Be concise."
+if [[ -n "$CHEAP_GUARDRAILS_FILE" && -f "$CHEAP_GUARDRAILS_FILE" ]]; then GUARD="$(<"$CHEAP_GUARDRAILS_FILE")"
+else GUARD="${CHEAP_GUARDRAILS:-$GUARD_DEFAULT}"; fi
+
+# Window title and banner (skipped when output is not a terminal, e.g. headless -p runs).
+SHORT_INBOX="${INBOX/#$HOME/~}"
+if [[ -t 1 ]]; then
+  printf '\033]0;⚡ CHEAP MODE · %s\007' "${MAIN##*/}"
+  printf '\033[38;5;214m\033[1m  ⚡ CHEAP MODE\033[0m  \033[2m%s · quick jobs %s · billed to OpenRouter, not your Claude plan\033[0m\n' "${MAIN##*/}" "${FAST##*/}"
+  printf '\033[2m  Results go to %s · no builds, releases or deploys here\033[0m\n\n' "$SHORT_INBOX"
+else
+  echo "claude-cheap: $MAIN (quick jobs: $FAST) via OpenRouter" >&2
+fi
+
+ARGS=(--append-system-prompt "$GUARD" --name "cheap mode")
+if [[ "${CHEAP_STATUSLINE:-1}" != "0" && -f "$HERE/../cheap/statusline.py" ]]; then
+  mkdir -p "$DIR"
+  PY="${CHEAP_STATUSLINE_PYTHON:-/usr/bin/python3}"; [[ -x "$PY" ]] || PY="$(command -v python3)"
+  printf '{\n  "statusLine": { "type": "command", "command": "%s %s", "padding": 0 }\n}\n' "$PY" "${HERE:h}/cheap/statusline.py" > "$DIR/settings.json"
+  ARGS=(--settings "$DIR/settings.json" "${ARGS[@]}")
+fi
+
+# Clean environment so your normal Claude login (e.g. from the desktop app) is never sent to OpenRouter.
+exec env -i HOME="$HOME" USER="$USER" LOGNAME="$LOGNAME" PATH="$PATH" SHELL="${SHELL:-/bin/zsh}" \
+  TERM="${TERM:-xterm-256color}" COLORTERM="$COLORTERM" LANG="${LANG:-en_US.UTF-8}" TMPDIR="${TMPDIR:-/tmp}" \
+  LOCAL_FIRST_HOME="$LF" CHEAP_INBOX="$INBOX" CHEAP_KEYCHAIN_SERVICE="$SERVICE" CHEAP_CACHE_DIR="${CHEAP_CACHE_DIR:-$HOME/.cache/local-first}" \
+  ANTHROPIC_BASE_URL="https://openrouter.ai/api" ANTHROPIC_AUTH_TOKEN="$KEY" ANTHROPIC_API_KEY="" \
+  ANTHROPIC_MODEL="$MAIN" ANTHROPIC_DEFAULT_OPUS_MODEL="$MAIN" ANTHROPIC_DEFAULT_SONNET_MODEL="$MAIN" \
+  ANTHROPIC_DEFAULT_HAIKU_MODEL="$FAST" \
+  "$CLAUDE" "${ARGS[@]}" "$@"

@@ -1,0 +1,9 @@
+# A task with a script (tier 0) and a prompt. The script runs, no model is involved.
+# If the script ever fails, the ladder climbs: local model, then cheap API, then a handoff file for Claude.
+name: disk-report
+description: Report free disk space and the biggest folders.
+tier0:
+  command: ["sh", "scripts/disk_report.sh"]
+  timeout: 60
+prompt: |
+  Summarise this disk report in two sentences and say whether anything needs attention.

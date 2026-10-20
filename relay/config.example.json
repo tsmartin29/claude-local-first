@@ -1,0 +1,14 @@
+{
+  "workdir": "~/work",
+  "inbox": "~/.local-first/INBOX.md",
+  "queue_dir": "~/.local-first/queue",
+  "usage_file": "~/.local-first/usage.json",
+  "cooldown_seconds": 3600,
+  "check_ram": true,
+  "min_avail_gb": 6,
+  "max_swap_gb": 6,
+  "min_disk_gb": 6.5,
+  "notify": true,
+  "auto_run": false,
+  "wrapper": []
+}
